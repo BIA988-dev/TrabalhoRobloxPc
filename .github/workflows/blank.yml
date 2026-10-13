@@ -1,0 +1,50 @@
+name: Windows Cloud PC - Anydesk (Optimized)
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Start Building...
+    runs-on: windows-latest
+    timeout-minutes: 360 # O tempo máximo permitido pelo GitHub Actions é de 6 horas (360 min)
+
+    steps:
+      - name: Downloading & Installing Essentials
+        run: |
+          # Transfere o instalador oficial do AnyDesk
+          Invoke-WebRequest -Uri "https://download.anydesk.com/AnyDesk.exe" -OutFile "AnyDesk.exe"
+          
+          # Instala o AnyDesk silenciosamente no sistema
+          Start-Process -FilePath ".\AnyDesk.exe" -ArgumentList "--install `"$env:ProgramFiles (x86)\AnyDesk`" --start-with-win --silent" -Wait
+          
+          # Aguarda a conclusão da instalação no sistema
+          Start-Sleep -Seconds 10
+      - name: Log In To AnyDesk
+        run: |
+          # Executa o AnyDesk utilizando o caminho completo de instalação
+          $anydeskPath = "$env:ProgramFiles (x86)\AnyDesk\AnyDesk.exe"
+          if (Test-Path $anydeskPath) {
+            # Define a palavra-passe de acesso não supervisionado
+            echo "Senha123456" | & $anydeskPath --set-password
+            
+            # Mostra o ID do AnyDesk na consola
+            & $anydeskPath --get-id
+          } else {
+            Write-Host "Instalação do AnyDesk não encontrada em $anydeskPath"
+          }
+      - name: Monitor and Restart AnyDesk if Needed
+        run: |
+          # Monitora o processo do AnyDesk
+          while ($true) {$process = Get-Process -Name "AnyDesk" -ErrorAction SilentlyContinue
+            if (-not $process) {
+              Write-Host "AnyDesk não está a rodar, a reiniciar..."
+              Start-Process -FilePath "$env:ProgramFiles (x86)\AnyDesk\AnyDesk.exe"
+            }
+            Start-Sleep -Seconds 300 # Verifica a cada 5 minutos
+          }
+      - name: Clean Up Temporary Files
+        if: always()
+        run: |
+          Remove-Item AnyDesk.exe -ErrorAction SilentlyContinue -Force
+          Write-Host "Limpeza concluída."
+          
